@@ -1,0 +1,47 @@
+from dwave.system.samplers import DWaveSampler
+from dwave.system.composites import EmbeddingComposite
+token = '**'
+endpoint = ''
+import numpy as np
+
+A=50
+B=30
+C=10
+D=10
+
+T=int(input()
+K=3*T
+N=int(input()
+
+while D <160:
+    H = np.zeros(K*K).reshape(K,K)
+    for i in range(T-1):
+        H[(i,i+1)] = A
+    for i in range(T, 2*T-1):
+        H[(i,i+1)] = A
+    for i in range(2*T, 3*T-1):
+        H[(i,i+1)] = A
+    for i  in range(T-2):
+        H[(i,i+2)] = B
+    for i  in range(T, 2*T-2):
+        H[(i,i+2)] = B
+    for i  in range(2*T, 3*T-2):
+        H[(i,i+2)] = B
+    for i  in range(T):
+        H[(i,i+5)] = C
+        H[(i+5,i+10)]= C
+        H[(i,i+10)]=C
+    for i in range(K):
+        for j in range(K):
+            if i < j:
+                H[(i,j)] = H[(i,j)]+2*D
+            if i == j:
+                H[(i,j)] = H[(i,j)]-2*N*D+D
+                
+    dw_sampler = DWaveSampler(solver='Advantage_system1.1', token=token)
+    sampler = EmbeddingComposite(dw_sampler)
+    sampleset = sampler.sample_qubo(H,num_reads=100)
+
+    print( D, sampleset.record)
+
+    D += 10
