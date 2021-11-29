@@ -1,0 +1,319 @@
+from dwave.system.samplers import DWaveSampler
+from dwave.system.composites import EmbeddingComposite
+import numpy as np
+token = ''
+endpoint = ''
+A=10
+B=5
+C=100
+D=50
+T=int(input("輸送開始時刻数"))
+N=int(input("荷積地点数"))
+E=int(input("荷降地点数"))
+R=list()
+for i in range(N):
+    masu=int(input("輸送に必要なマス"))
+    R.append(masu)
+H = np.zeros(E*N*T*E*N*T).reshape(E*N*T,E*N*T)
+def object(E, N, T):
+    for i in range(E*N*T):
+        H[(i,i)] = -A
+object(E, N, T)
+def sameE(n,e):
+    for i in range(e*N*T,e*N*T+T):
+        H[(i,i)] =H[(i,i)]+B
+    for i in range(e*N*T+(n-1)*T,e*N*T+n*T):
+        H[(i,i)] =H[(i,i)]+B
+    for i in range(e*N*T,e*N*T+n*T):
+        for j in range(e*N*T,e*N*T+n*T):
+            if i < j:
+                if j<=e*N*T+T-1:
+                    H[(i,j)] =H[(i,j)]+2*B
+                if i>e*N*T+(n-1)*T-1:
+                    H[(i,j)] =H[(i,j)]+2*B
+                if i<=e*N*T+T-1 and e*N*T+(n-1)*T-1<j:
+                    H[(i,j)] =H[(i,j)]-2*B    
+def interaction_Edifference1(n,e):
+    #EnとEn+1
+    #B項　S1からEn, S1からEn+1の相互作用
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+1)*N*T,(e+1)*N*T+T):
+            H[(i,j)] =H[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+1の相互作用    
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+1)*N*T+(n-1)*T,(e+1)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]-2*B  
+    #B項　S1からEn+1, SnからEnの相互作用    
+    for i in range(e*N*T+(n-1)*T, e*N*T+n*T):
+        for j in range((e+1)*N*T,(e+1)*N*T+T):
+            H[(i,j)] =H[(i,j)]-2*B
+    #B項　SnからEn+1, SnからEnの相互作用
+    for i in range(e*N*T+(n-1)*T,e*N*T+n*T):
+        for j in range((e+1)*N*T+(n-1)*T,(e+1)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]+2*B
+def interaction_Edifference2(n,e):
+    #EnとEn+2
+    #B項　S1からEn, S1からEn+2の相互作用
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+2)*N*T,(e+2)*N*T+T):
+            H[(i,j)] =H[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+2の相互作用    
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+2)*N*T+(n-1)*T,(e+2)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]-2*B  
+    #B項　S1からEn+2, SnからEnの相互作用    
+    for i in range(e*N*T+(n-1)*T, e*N*T+n*T):
+        for j in range((e+2)*N*T,(e+2)*N*T+T):
+            H[(i,j)] =H[(i,j)]-2*B
+    #B項　SnからEn+2, SnからEnの相互作用
+    for i in range(e*N*T+(n-1)*T,e*N*T+n*T):
+        for j in range((e+2)*N*T+(n-1)*T,(e+2)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]+2*B
+def interaction_Edifference3(n,e):
+    #EnとEn+3
+    #B項　S1からEn, S1からEn+3の相互作用
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+3)*N*T,(e+3)*N*T+T):
+            H[(i,j)] =H[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+3の相互作用    
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+3)*N*T+(n-1)*T,(e+3)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]-2*B  
+    #B項　S1からEn+3, SnからEnの相互作用    
+    for i in range(e*N*T+(n-1)*T, e*N*T+n*T):
+        for j in range((e+3)*N*T,(e+3)*N*T+T):
+            H[(i,j)] =H[(i,j)]-2*B
+    #B項　SnからEn+3, SnからEnの相互作用
+    for i in range(e*N*T+(n-1)*T,e*N*T+n*T):
+        for j in range((e+3)*N*T+(n-1)*T,(e+3)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]+2*B
+def ToE1(n):
+    sameE(n,0)
+def ToE2(n):
+    #B項　E2同士
+    sameE(n,1)
+    #B項　E1とE2
+    interaction_Edifference1(n,0)
+def ToE3(n):
+    #B項　E3同士
+    sameE(n,2)
+    #B項　E2とE3
+    interaction_Edifference1(n,1)
+    #B項　E1とE3
+    interaction_Edifference2(n,0)
+def ToE4(n):
+    #B項　E4同士
+    sameE(n,3)
+    #B項　E3とE4
+    interaction_Edifference1(n,2)
+    #B項　E2とE4
+    interaction_Edifference2(n,1)
+    #B項　E1とE4
+    interaction_Edifference3(n,0)
+#B項
+for i in range(N-1):
+    if E>0:
+        ToE1(i+2) 
+    if E>1:
+        ToE2(i+2)
+    if E>2:
+        ToE3(i+2)  
+    if E>3:
+        ToE4(i+2)
+#C項
+for k in range(E):
+    for j in range(N):
+        for i in range((k-1)*N*T+(j+1)*T-R[j]-1, (k-1)*N*T+(j+1)*T):
+            H[(i,i)] = H[(i,i)]+C
+#D項(荷降時刻の重複)：荷降施設数だけ繰り返す
+for l in range(E):
+    for k in range(N-1):
+        for j in range(k+1):
+            for i in range(l*N*T, l*N*T+T+R[j]-R[k+1]):
+                H[(i+j*T-R[j]+R[k+1],i+(k+1)*T)] = H[(i+j*T-R[j]+R[k+1],i+(k+1)*T)]+2*D
+#E項(荷積時刻の重複)
+for j in range(E-1):
+    for l in range(j+1):
+        for k in range(N):
+            for i in range(T):
+                H[(i+l*N*T+k*T,i+(j+1)*N*T+k*T)] = H[(i+l*N*T+k*T,i+(j+1)*N*T+k*T)]+2*D
+%%time
+dw_sampler = DWaveSampler(solver='Advantage_system4.1', token=token)
+sampler = EmbeddingComposite(dw_sampler)
+sampleset = sampler.sample_qubo(H,num_reads=500,answer_mode="raw",label="def")
+l=list(sampleset.record.sample)
+ll=list(sampleset.record.energy)
+lll=list(sampleset.record.num_occurrences)
+
+#以降遅延発生後の再計算
+T1=int(input("遅れ発生以前の輸送時刻数"))
+T2=int(input("遅延の継続時刻数"))
+#各荷積み施設からの車両数合計
+LateSx=list()
+
+for n in range(N):
+    Late=0
+    for e in range(E):
+        Late_Ex=sum(optimal[e*N*T+n*T:e*N*T+n*T+T1])
+        Late+=Late_Ex
+    LateSx.append(Late)
+    
+print(LateSx)
+T_ans_list=[]
+for e in range(E):
+    Late_last_candidate=[]
+    for n in range(N):
+        Late_list=[]
+        opt=optimal[e*N*T+n*T:e*N*T+n*T+T1]
+        Late_list.append(opt)
+        Late_list_index =[]
+        index= [i for i, x in enumerate(Late_list[0]) if x == 1]
+        if len(index)>0:
+            candidate=max(index)+R[n]+2
+            Late_last_candidate.append(candidate)
+    if len(Late_last_candidate)>0:
+        T_ans_list.append(max(Late_last_candidate))
+    else:
+        T_ans_list.append(0)
+print(T_ans_list)
+T_restart=T-T1-T2
+H1 = np.zeros(E*N*T_restart*E*N*T_restart).reshape(E*N*T_restart,E*N*T_restart)
+for i in range(E*N*T_restart):
+    H1[(i,i)] = -A
+def samedE(n,e):
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        H1[(i,i)] =H1[(i,i)]+B
+        H1[(i,i)] =H1[(i,i)]+2*B*(LateSx[n-2]-LateSx[n-1])
+
+    for i in range(e*N*T_restart+(n-1)*T_restart, e*N*T_restart+n*T_restart):
+        H1[(i,i)] =H1[(i,i)]+B
+        H1[(i,i)] =H1[(i,i)]+2*B*(LateSx[n-1]-LateSx[n-2])
+
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range(e*N*T_restart+(n-1)*T_restart, e*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B
+
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range(e*N*T_restart, e*N*T_restart+T_restart):
+            if i<j:
+                H1[(i,j)] =H1[(i,j)]+2*B
+
+    for i in range(e*N*T_restart+(n-1)*T_restart,e*N*T_restart+n*T_restart):
+        for j in range(e*N*T_restart+(n-1)*T_restart, e*N*T_restart+n*T_restart):
+            if i<j:
+                H1[(i,j)] =H1[(i,j)]+2*B
+def interaction_Edifferenced1(n,e):
+    #EnとEn+1
+    #B項　S1からEn, S1からEn+1の相互作用
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range((e+1)*N*T_restart,(e+1)*N*T_restart+T_restart):
+            H1[(i,j)] =H1[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+1の相互作用    
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range((e+1)*N*T_restart+(n-1)*T_restart,(e+1)*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B  
+    #B項　S1からEn+1, SnからEnの相互作用    
+    for i in range(e*N*T_restart+(n-1)*T_restart, e*N*T_restart+n*T_restart):
+        for j in range((e+1)*N*T_restart,(e+1)*N*T_restart+T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B
+    #B項　SnからEn+1, SnからEnの相互作用
+    for i in range(e*N*T_restart+(n-1)*T_restart,e*N*T_restart+n*T_restart):
+        for j in range((e+1)*N*T_restart+(n-1)*T_restart,(e+1)*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]+2*B
+def interaction_Edifferenced2(n,e):
+    #EnとEn+2
+    #B項　S1からEn, S1からEn+2の相互作用
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range((e+2)*N*T_restart,(e+2)*N*T_restart+T_restart):
+            H1[(i,j)] =H1[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+2の相互作用    
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range((e+2)*N*T_restart+(n-1)*T_restart,(e+2)*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B  
+    #B項　S1からEn+2, SnからEnの相互作用    
+    for i in range(e*N*T_restart+(n-1)*T_restart, e*N*T_restart+n*T_restart):
+        for j in range((e+2)*N*T_restart,(e+2)*N*T_restart+T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B
+    #B項　SnからEn+2, SnからEnの相互作用
+    for i in range(e*N*T_restart+(n-1)*T_restart,e*N*T_restart+n*T_restart):
+        for j in range((e+2)*N*T_restart+(n-1)*T_restart,(e+2)*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]+2*B
+def interaction_Edifferenced3(n,e):
+    #EnとEn+3
+    #B項　S1からEn, S1からEn+3の相互作用
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range((e+3)*N*T_restart,(e+3)*N*T_restart+T_restart):
+            H1[(i,j)] =H1[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+3の相互作用    
+    for i in range(e*N*T_restart, e*N*T_restart+T_restart):
+        for j in range((e+3)*N*T_restart+(n-1)*T_restart,(e+3)*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B  
+    #B項　S1からEn+3, SnからEnの相互作用    
+    for i in range(e*N*T_restart+(n-1)*T_restart, e*N*T_restart+n*T_restart):
+        for j in range((e+3)*N*T_restart,(e+3)*N*T_restart+T_restart):
+            H1[(i,j)] =H1[(i,j)]-2*B
+    #B項　SnからEn+3, SnからEnの相互作用
+    for i in range(e*N*T_restart+(n-1)*T_restart,e*N*T_restart+n*T_restart):
+        for j in range((e+3)*N*T_restart+(n-1)*T_restart,(e+3)*N*T_restart+n*T_restart):
+            H1[(i,j)] =H1[(i,j)]+2*B
+#B項
+def ToE1d(n):
+    samedE(n,0)
+def ToE2d(n):
+    #B項　E2同士
+    samedE(n,1)
+    #B項　E1とE2
+    interaction_Edifferenced1(n,0)
+def ToE3d(n):
+    samedE(n,2)
+    #B項　E2とE3
+    interaction_Edifferenced1(n,1)
+    #B項　E1とE3
+    interaction_Edifferenced2(n,0)
+def ToE4d(n):
+    samedE(n,3)
+    #B項　E3とE4
+    interaction_Edifferenced1(n,2)
+    #B項　E2とE4
+    interaction_Edifferenced2(n,1)
+    #B項　E1とE4
+    interaction_Edifferenced3(n,0)
+#B項
+for i in range(N-1):
+    if E>0:
+        ToE1d(i+2) 
+    if E>1:
+        ToE2d(i+2)
+    if E>2:
+        ToE3d(i+2)  
+    if E>3:
+        ToE4d(i+2)
+#C項
+for k in range(E):
+    for j in range(N):
+        for i in range((k-1)*N*T_restart+(j+1)*T_restart-R[j]-1, (k-1)*N*T_restart+(j+1)*T_restart):
+            H1[(i,i)] = H1[(i,i)]+C
+#D項
+for l in range(E):
+    for k in range(N-1):
+        for j in range(k+1):
+            for i in range(l*N*T_restart, l*N*T_restart+T_restart+R[j]-R[k+1]):
+                H1[(i+j*T_restart-R[j]+R[k+1],i+(k+1)*T_restart)] = H1[(i+j*T_restart-R[j]+R[k+1],i+(k+1)*T_restart)]+2*D
+#E項(荷積時刻の重複)
+for j in range(E-1):
+    for l in range(j+1):
+        for k in range(N):
+            for i in range(T_restart):
+                H1[(i+l*N*T_restart+k*T_restart,i+(j+1)*N*T_restart+k*T_restart)] = H1[(i+l*N*T_restart+k*T_restart,i+(j+1)*N*T_restart+k*T_restart)]+2*D
+#F項(パラメータはD)，再開前後の荷降重複を防ぐ，（遅延前の最終荷降時刻以降に，再開後の荷降）
+for k in range(E):
+    for j in range(N):
+        for i in range(k*N*T_restart+j*T_restart, k*N*T_restart+j*T_restart+T_ans_list[k]-T1-T2-R[j]-1):
+            H1[(i,i)] = H1[(i,i)]+D
+%%time
+dw_sampler = DWaveSampler(solver='Advantage_system4.1', token=token)
+sampler = EmbeddingComposite(dw_sampler)
+sampleset = sampler.sample_qubo(H1,num_reads=500, answer_mode="raw", label="def_d")
+l_restart=list(sampleset.record.sample)
+ll_restart=list(sampleset.record.energy)
+lll_restart=list(sampleset.record.num_occurrences)
