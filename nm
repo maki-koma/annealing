@@ -1,0 +1,169 @@
+from dwave.system.samplers import DWaveSampler
+from dwave.system.composites import EmbeddingComposite
+import numpy as np
+token = 
+endpoint = 
+A=10
+B=5
+C=100
+D=50
+#T: 輸送開始時刻数
+T=int(input("輸送開始時刻数"))
+N=int(input("荷積地点数"))
+E=int(input("荷降地点数"))
+R=list()
+for i in range (E):
+    R.append(list())
+for i in range(E):
+    for n in range(N):
+        masu=int(input("輸送に必要なマス"))
+        R[i].append(masu)
+H = np.zeros(E*N*T*E*N*T).reshape(E*N*T,E*N*T)
+def object(E, N, T):
+    for i in range(E*N*T):
+        H[(i,i)] = -A
+object(E, N, T)
+def sameE(n,e):
+    for i in range(e*N*T,e*N*T+T):
+        H[(i,i)] =H[(i,i)]+B
+    for i in range(e*N*T+(n-1)*T,e*N*T+n*T):
+        H[(i,i)] =H[(i,i)]+B
+    for i in range(e*N*T,e*N*T+n*T):
+        for j in range(e*N*T,e*N*T+n*T):
+            if i < j:
+                if j<=e*N*T+T-1:
+                    H[(i,j)] =H[(i,j)]+2*B
+                if i>e*N*T+(n-1)*T-1:
+                    H[(i,j)] =H[(i,j)]+2*B
+                if i<=e*N*T+T-1 and e*N*T+(n-1)*T-1<j:
+                    H[(i,j)] =H[(i,j)]-2*B   
+def interaction_Edifference(n,e,m):
+    #EnとEn+m
+    #B項　S1からEn, S1からEn+mの相互作用
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+m)*N*T,(e+m)*N*T+T):
+            H[(i,j)] =H[(i,j)]+2*B   
+    #B項　S1からEn, SnからEn+mの相互作用    
+    for i in range(e*N*T, e*N*T+T):
+        for j in range((e+m)*N*T+(n-1)*T,(e+m)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]-2*B  
+    #B項　S1からEn+m, SnからEnの相互作用    
+    for i in range(e*N*T+(n-1)*T, e*N*T+n*T):
+        for j in range((e+m)*N*T,(e+m)*N*T+T):
+            H[(i,j)] =H[(i,j)]-2*B
+    #B項　SnからEn+m, SnからEnの相互作用
+    for i in range(e*N*T+(n-1)*T,e*N*T+n*T):
+        for j in range((e+m)*N*T+(n-1)*T,(e+m)*N*T+n*T):
+            H[(i,j)] =H[(i,j)]+2*B
+    def ToE1(n):
+    sameE(n,0)
+    def ToE2(n):
+    #B項　E2同士
+    sameE(n,1)
+    #B項　E1とE2
+    interaction_Edifference(n,0,1)
+    def ToE3(n):
+    #B項　E3同士
+    sameE(n,2)
+    #B項　E2とE3
+    interaction_Edifference(n,1,1)
+    #B項　E1とE3
+    interaction_Edifference(n,0,2)
+   def ToE4(n):
+    #B項　E4同士
+    sameE(n,3)
+    #B項　E3とE4
+    interaction_Edifference(n,2,1)
+    #B項　E2とE4
+    interaction_Edifference(n,1,2)
+    #B項　E1とE4
+    interaction_Edifference(n,0,3) 
+    def ToE5(n):
+    #B項　E5同士
+    sameE(n,4)
+    #B項　E4とE5
+    interaction_Edifference(n,3,1)
+    #B項　E3とE5
+    interaction_Edifference(n,2,2)
+    #B項　E2とE5
+    interaction_Edifference(n,1,3)
+    #B項　E1とE5
+    interaction_Edifference(n,0,4)
+#B項
+for i in range(N-1):
+    if E>0:
+        ToE1(i+2) 
+    if E>1:
+        ToE2(i+2)
+    if E>2:
+        ToE3(i+2)  
+    if E>3:
+        ToE4(i+2)
+    if E>4:
+        ToE5(i+2)   
+ #C項
+for k in range(E):
+    for j in range(N):
+        for i in range(k*N*T+(j+1)*T-R[k][j]-1, k*N*T+(j+1)*T):
+            H[(i,i)] = H[(i,i)]+C   
+ #D項(荷降時刻の重複)：荷降施設数だけ繰り返す
+for l in range(E):
+    for k in range(N-1):
+        for j in range(k+1):
+            for i in range(l*N*T, l*N*T+T+R[l][j]-R[l][k+1]):
+                H[(i+j*T-R[l][j]+R[l][k+1],i+(k+1)*T)] = H[(i+j*T-R[l][j]+R[l][k+1],i+(k+1)*T)]+2*D   
+  #E項(荷積時刻の重複)
+for j in range(E-1):
+    for l in range(j+1):
+        for k in range(N):
+            for i in range(T):
+                H[(i+l*N*T+k*T,i+(j+1)*N*T+k*T)] = H[(i+l*N*T+k*T,i+(j+1)*N*T+k*T)]+2*D  
+
+dw_sampler = DWaveSampler(solver='Advantage_system4.1', token=token)
+sampler = EmbeddingComposite(dw_sampler)
+sampleset = sampler.sample_qubo(H,num_reads=1000,answer_mode="raw",label="Rnm")    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
